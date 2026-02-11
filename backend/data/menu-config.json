@@ -1,0 +1,91 @@
+﻿[
+  {
+    "key": "overview",
+    "label": "概览",
+    "title": "概览",
+    "iconKey": "overview",
+    "iconDataUrl": null,
+    "children": null
+  },
+  {
+    "key": "products",
+    "label": "产品管理",
+    "title": "产品管理",
+    "iconKey": "products",
+    "iconDataUrl": null,
+    "children": null
+  },
+  {
+    "key": "modules",
+    "label": "功能模块",
+    "title": "功能模块",
+    "iconKey": "modules",
+    "iconDataUrl": null,
+    "children": null
+  },
+  {
+    "key": "versions",
+    "label": "版本管理",
+    "title": "版本管理",
+    "iconKey": "versions",
+    "iconDataUrl": null,
+    "children": null
+  },
+  {
+    "key": "requirements",
+    "label": "需求管理",
+    "title": "需求管理",
+    "iconKey": "requirements",
+    "iconDataUrl": null,
+    "children": null
+  },
+  {
+    "key": "tasks",
+    "label": "任务管理",
+    "title": "任务管理",
+    "iconKey": "tasks",
+    "iconDataUrl": null,
+    "children": null
+  },
+  {
+    "key": "reports",
+    "label": "数据报表",
+    "title": "数据报表",
+    "iconKey": "reports",
+    "iconDataUrl": null,
+    "children": null
+  },
+  {
+    "key": "system",
+    "label": "系统管理",
+    "title": "系统管理",
+    "iconKey": "system",
+    "iconDataUrl": null,
+    "children": [
+      {
+        "key": "settings",
+        "label": "应用设置",
+        "title": "应用设置",
+        "iconKey": "settings",
+        "iconDataUrl": null,
+        "children": null
+      },
+      {
+        "key": "menus",
+        "label": "菜单管理",
+        "title": "菜单管理",
+        "iconKey": "menus",
+        "iconDataUrl": null,
+        "children": null
+      },
+      {
+        "key": "dicts",
+        "label": "字典管理",
+        "title": "字典管理",
+        "iconKey": "dicts",
+        "iconDataUrl": null,
+        "children": null
+      }
+    ]
+  }
+]
