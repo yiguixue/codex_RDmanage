@@ -129,9 +129,17 @@ type ProductFilterState = {
 
 const initialMenus: MenuItem[] = [
   { key: "overview", label: "概览", title: "概览", iconKey: "overview" },
-  { key: "products", label: "产品管理", title: "产品管理", iconKey: "products" },
-  { key: "modules", label: "功能模块", title: "功能模块", iconKey: "modules" },
-  { key: "versions", label: "版本管理", title: "版本管理", iconKey: "versions" },
+  {
+    key: "productGroup",
+    label: "产品管理",
+    title: "产品管理",
+    iconKey: "products",
+    children: [
+      { key: "products", label: "产品管理", title: "产品管理", iconKey: "products" },
+      { key: "modules", label: "功能模块", title: "功能模块", iconKey: "modules" },
+      { key: "versions", label: "版本管理", title: "版本管理", iconKey: "versions" }
+    ]
+  },
   { key: "requirements", label: "需求管理", title: "需求管理", iconKey: "requirements" },
   { key: "tasks", label: "任务管理", title: "任务管理", iconKey: "tasks" },
   { key: "reports", label: "数据报表", title: "数据报表", iconKey: "reports" },
@@ -464,33 +472,48 @@ const iconLibraryOptions = iconLibrary.map((item) => ({
   dataUrl: svgToDataUrl(item.svg)
 }));
 
-const mergeMenuConfig = (defaults: MenuItem[], remote: MenuItem[]) => {
-  const byKey = new Map(remote.map((item) => [item.key, item]));
-  const merged: MenuItem[] = [];
-  defaults.forEach((def) => {
-    const existing = byKey.get(def.key);
-    if (!existing) {
-      merged.push(def);
-      return;
+const normalizeMenuConfig = (items: MenuItem[]) =>
+  items.map((item) => {
+    if (item.children && item.children.length > 0) {
+      const hasDuplicateKey = item.children.some((child) => child.key === item.key);
+      if (hasDuplicateKey) {
+        const normalizedKey = item.key === "products" ? "productGroup" : item.key;
+        return { ...item, key: normalizedKey };
+      }
     }
-    if (def.children && def.children.length > 0) {
-      const remoteChildren = existing.children ?? [];
+    return item;
+  });
+
+const mergeMenuConfig = (defaults: MenuItem[], remote: MenuItem[]) => {
+  const defaultByKey = new Map(defaults.map((item) => [item.key, item]));
+  const merged: MenuItem[] = [];
+
+  remote.forEach((item) => {
+    const def = defaultByKey.get(item.key);
+    if (def && def.children && def.children.length > 0) {
+      const remoteChildren = item.children ?? [];
       const childKeys = new Set(remoteChildren.map((child) => child.key));
       const mergedChildren = [
         ...remoteChildren,
         ...def.children.filter((child) => !childKeys.has(child.key))
       ];
-      merged.push({ ...existing, children: mergedChildren });
-    } else {
-      merged.push(existing);
+      merged.push({ ...def, ...item, children: mergedChildren });
+      return;
     }
+    if (def) {
+      merged.push({ ...def, ...item, children: item.children ?? def.children });
+      return;
+    }
+    merged.push(item);
   });
+
   const mergedKeys = new Set(merged.map((item) => item.key));
-  remote.forEach((item) => {
-    if (!mergedKeys.has(item.key)) {
-      merged.push(item);
+  defaults.forEach((def) => {
+    if (!mergedKeys.has(def.key)) {
+      merged.push(def);
     }
   });
+
   return merged;
 };
 
@@ -528,6 +551,7 @@ export default function App() {
   const [taskError, setTaskError] = useState("");
   const [dictError, setDictError] = useState("");
   const [activeMenu, setActiveMenu] = useState<MenuKey>("overview");
+  const [productExpanded, setProductExpanded] = useState(true);
   const [systemExpanded, setSystemExpanded] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [modal, setModal] = useState<ModalState>(emptyModal);
@@ -558,6 +582,7 @@ export default function App() {
   } = useListUiState(initialFilters, initialProductFilters);
   const [appName, setAppName] = useState("研发管理系统");
   const [appIcon, setAppIcon] = useState<string | null>(null);
+  const [productHover, setProductHover] = useState(false);
   const [systemHover, setSystemHover] = useState(false);
   const [menuConfig, setMenuConfig] = useState<MenuItem[]>(initialMenus);
   const [draggingMenu, setDraggingMenu] = useState<{
@@ -624,7 +649,7 @@ export default function App() {
     loadMenuConfigApi()
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
-          setMenuConfig(mergeMenuConfig(initialMenus, data));
+          setMenuConfig(mergeMenuConfig(initialMenus, normalizeMenuConfig(data)));
         }
       })
       .catch(() => null);
@@ -700,8 +725,13 @@ export default function App() {
     return items;
   }, [menuConfig]);
 
+  const productMenuGroup = useMemo(
+    () => menuConfig.find((menu) => menu.key === "productGroup"),
+    [menuConfig]
+  );
   const systemMenuGroup = useMemo(() => menuConfig.find((menu) => menu.key === "system"), [menuConfig]);
 
+  const productMenus = productMenuGroup?.children ?? [];
   const systemMenus = systemMenuGroup?.children ?? [];
 
   useEffect(() => {
@@ -710,10 +740,16 @@ export default function App() {
   }, [activeMenu, flatMenus]);
 
   useEffect(() => {
+    if (!sidebarCollapsed && productMenus.some((menu) => menu.key === activeMenu)) {
+      setProductExpanded(true);
+    }
+  }, [activeMenu, sidebarCollapsed, productMenus]);
+
+  useEffect(() => {
     if (!sidebarCollapsed && systemMenus.some((menu) => menu.key === activeMenu)) {
       setSystemExpanded(true);
     }
-  }, [activeMenu, sidebarCollapsed]);
+  }, [activeMenu, sidebarCollapsed, systemMenus]);
 
   useEffect(() => {
     let active = true;
@@ -939,7 +975,7 @@ export default function App() {
         }
         return menu;
       });
-      saveMenuConfig(next);
+      saveMenuConfig(normalizeMenuConfig(next));
       return next;
     });
   };
@@ -2186,78 +2222,158 @@ export default function App() {
         </div>
 
         <nav className="nav">
-          {menuConfig
-            .filter((menu) => !menu.children || menu.children.length === 0)
-            .map((menu) => (
-            <button
-              key={menu.key}
-              className={`nav-item ${activeMenu === menu.key ? "active" : ""}`}
-              onClick={() => setActiveMenu(menu.key)}
-              title={menu.label}
-            >
-              <span className="nav-icon">{renderMenuIcon(menu)}</span>
-              <span className="nav-label">{menu.label}</span>
-            </button>
-          ))}
-          <div
-            className={`nav-group ${systemExpanded ? "open" : ""}`}
-            onMouseEnter={() => sidebarCollapsed && setSystemHover(true)}
-            onMouseLeave={() => setSystemHover(false)}
-          >
-            <button
-              type="button"
-              className={`nav-item nav-group-toggle ${
-                systemMenus.some((menu) => menu.key === activeMenu) ? "active" : ""
-              }`}
-              onClick={() => {
-                if (sidebarCollapsed) {
-                  setSystemHover((prev) => !prev);
-                } else {
-                  setSystemExpanded((prev) => !prev);
-                }
-              }}
-            >
-              <span className="nav-icon">
-                {systemMenuGroup ? renderMenuIcon(systemMenuGroup) : menuIcons.system}
-              </span>
-              <span className="nav-label">{systemMenuGroup?.label ?? "系统管理"}</span>
-              <span className="nav-caret">
-                <IconChevron open={systemExpanded} />
-              </span>
-            </button>
-            {sidebarCollapsed && systemHover && (
-              <div className="nav-popover">
-                {systemMenus.map((menu) => (
+          {menuConfig.map((menu) => {
+            if (!menu.children || menu.children.length === 0) {
+              return (
+                <button
+                  key={menu.key}
+                  className={`nav-item simple ${activeMenu === menu.key ? "active" : ""}`}
+                  onClick={() => setActiveMenu(menu.key)}
+                  title={menu.label}
+                >
+                  <span className="nav-icon">{renderMenuIcon(menu)}</span>
+                  <span className="nav-label">{menu.label}</span>
+                </button>
+              );
+            }
+            if (menu.key === "productGroup") {
+              return (
+                <div
+                  key={menu.key}
+                  className={`nav-group ${productExpanded ? "open" : ""}`}
+                  onMouseEnter={() => sidebarCollapsed && setProductHover(true)}
+                  onMouseLeave={() => setProductHover(false)}
+                >
                   <button
-                    key={menu.key}
-                    className={`nav-item nav-popover-item ${activeMenu === menu.key ? "active" : ""}`}
+                    type="button"
+                    className={`nav-item nav-group-toggle ${
+                      productMenus.some((menuItem) => menuItem.key === activeMenu) ? "active" : ""
+                    }`}
                     onClick={() => {
-                      setActiveMenu(menu.key);
-                      setSystemHover(false);
+                      if (sidebarCollapsed) {
+                        setProductHover((prev) => !prev);
+                      } else {
+                        setProductExpanded((prev) => !prev);
+                      }
                     }}
                   >
-                    <span className="nav-icon">{renderMenuIcon(menu)}</span>
-                    <span className="nav-label">{menu.label}</span>
+                    <span className="nav-icon">
+                      {productMenuGroup ? renderMenuIcon(productMenuGroup) : menuIcons.products}
+                    </span>
+                    <span className="nav-label">{productMenuGroup?.label ?? "产品管理"}</span>
+                    <span className="nav-caret">
+                      <IconChevron open={productExpanded} />
+                    </span>
                   </button>
-                ))}
-              </div>
-            )}
-            {!sidebarCollapsed && systemExpanded && (
-              <div className="nav-sub">
-                {systemMenus.map((menu) => (
+                  {sidebarCollapsed && productHover && (
+                    <div className="nav-popover">
+                      {productMenus.map((menuItem) => (
+                        <button
+                          key={menuItem.key}
+                          className={`nav-item nav-popover-item ${
+                            activeMenu === menuItem.key ? "active" : ""
+                          }`}
+                          onClick={() => {
+                            setActiveMenu(menuItem.key);
+                            setProductHover(false);
+                          }}
+                        >
+                          <span className="nav-icon">{renderMenuIcon(menuItem)}</span>
+                          <span className="nav-label">{menuItem.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {!sidebarCollapsed && productExpanded && (
+                    <div className="nav-sub">
+                      {productMenus.map((menuItem) => (
+                        <button
+                          key={menuItem.key}
+                          className={`nav-item nav-sub-item ${
+                            activeMenu === menuItem.key ? "active" : ""
+                          }`}
+                          onClick={() => setActiveMenu(menuItem.key)}
+                          title={menuItem.label}
+                        >
+                          <span className="nav-icon">{renderMenuIcon(menuItem)}</span>
+                          <span className="nav-label">{menuItem.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+            if (menu.key === "system") {
+              return (
+                <div
+                  key={menu.key}
+                  className={`nav-group ${systemExpanded ? "open" : ""}`}
+                  onMouseEnter={() => sidebarCollapsed && setSystemHover(true)}
+                  onMouseLeave={() => setSystemHover(false)}
+                >
                   <button
-                    key={menu.key}
-                    className={`nav-item nav-sub-item ${activeMenu === menu.key ? "active" : ""}`}
-                    onClick={() => setActiveMenu(menu.key)}
-                    title={menu.label}
+                    type="button"
+                    className={`nav-item nav-group-toggle ${
+                      systemMenus.some((menuItem) => menuItem.key === activeMenu) ? "active" : ""
+                    }`}
+                    onClick={() => {
+                      if (sidebarCollapsed) {
+                        setSystemHover((prev) => !prev);
+                      } else {
+                        setSystemExpanded((prev) => !prev);
+                      }
+                    }}
                   >
-                    <span className="nav-icon">{renderMenuIcon(menu)}</span>
-                    <span className="nav-label">{menu.label}</span>
+                    <span className="nav-icon">
+                      {systemMenuGroup ? renderMenuIcon(systemMenuGroup) : menuIcons.system}
+                    </span>
+                    <span className="nav-label">{systemMenuGroup?.label ?? "系统管理"}</span>
+                    <span className="nav-caret">
+                      <IconChevron open={systemExpanded} />
+                    </span>
                   </button>
-                ))}
-              </div>
-            )}
-          </div>
+                  {sidebarCollapsed && systemHover && (
+                    <div className="nav-popover">
+                      {systemMenus.map((menuItem) => (
+                        <button
+                          key={menuItem.key}
+                          className={`nav-item nav-popover-item ${
+                            activeMenu === menuItem.key ? "active" : ""
+                          }`}
+                          onClick={() => {
+                            setActiveMenu(menuItem.key);
+                            setSystemHover(false);
+                          }}
+                        >
+                          <span className="nav-icon">{renderMenuIcon(menuItem)}</span>
+                          <span className="nav-label">{menuItem.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {!sidebarCollapsed && systemExpanded && (
+                    <div className="nav-sub">
+                      {systemMenus.map((menuItem) => (
+                        <button
+                          key={menuItem.key}
+                          className={`nav-item nav-sub-item ${
+                            activeMenu === menuItem.key ? "active" : ""
+                          }`}
+                          onClick={() => setActiveMenu(menuItem.key)}
+                          title={menuItem.label}
+                        >
+                          <span className="nav-icon">{renderMenuIcon(menuItem)}</span>
+                          <span className="nav-label">{menuItem.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+            return null;
+          })}
         </nav>
       </aside>
 
@@ -2649,6 +2765,7 @@ export default function App() {
           <MenusPage
             menuConfig={menuConfig}
             dragOverMenu={dragOverMenu}
+            draggingMenu={draggingMenu}
             setDragOverMenu={setDragOverMenu}
             setDraggingMenu={setDraggingMenu}
             handleMenuDrop={handleMenuDrop}

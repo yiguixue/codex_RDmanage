@@ -1,9 +1,9 @@
 ---
-name: rd-ui-sryle
+name: rd-ui-style
 description: Design and implement UI in the user's preferred style (clean, youthful, low-saturation, Feishu-like) for product/management dashboards and CRUD apps. Use when building or refining UI layouts, typography, color, spacing, navigation, tables/lists, forms, modals, date pickers, and interactions to match this style.
 ---
 
-# rd-ui-sryle
+# rd-ui-style
 
 ## 设计基调
 - 清爽、年轻、低饱和度，参考飞书风格。

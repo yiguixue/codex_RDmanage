@@ -166,6 +166,16 @@ body {
   white-space: nowrap;
   transition: opacity 0.28s cubic-bezier(0.22, 1, 0.36, 1),
     max-width 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  flex: 1;
+}
+
+.nav-item.simple::after {
+  content: "";
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-left: auto;
+  flex: 0 0 14px;
 }
 
 .app.sidebar-collapsed .nav-label {
@@ -180,12 +190,14 @@ body {
 }
 
 .nav-group-toggle {
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
+  position: relative;
+  padding-right: 30px;
 }
 
 .nav-group-toggle .nav-icon {
-  margin-right: 10px;
+  margin-right: 0;
 }
 
 .nav-caret {
@@ -195,6 +207,8 @@ body {
   display: inline-flex;
   align-items: center;
   transition: color 0.2s ease;
+  position: absolute;
+  right: 12px;
 }
 
 .nav-caret svg {

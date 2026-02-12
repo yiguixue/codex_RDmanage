@@ -14,6 +14,7 @@ type DraggingMenu = {
 type MenusPageProps = {
   menuConfig: MenuNode[];
   dragOverMenu: string | null;
+  draggingMenu: DraggingMenu;
   setDragOverMenu: (value: string | null) => void;
   setDraggingMenu: (value: DraggingMenu) => void;
   handleMenuDrop: (targetKey: string, parentKey?: string) => void;
@@ -25,6 +26,7 @@ type MenusPageProps = {
 export function MenusPage({
   menuConfig,
   dragOverMenu,
+  draggingMenu,
   setDragOverMenu,
   setDraggingMenu,
   handleMenuDrop,
@@ -39,7 +41,19 @@ export function MenusPage({
           {menuConfig.map((menu) => {
             const isSystemGroup = Boolean(menu.children && menu.children.length > 0);
             return (
-              <div key={menu.key} className="menu-group">
+              <div
+                key={menu.key}
+                className="menu-group"
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  setDragOverMenu(menu.key);
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  handleMenuDrop(menu.key);
+                }}
+              >
                 <div
                   className={`menu-row ${dragOverMenu === menu.key ? "drag-over" : ""}`}
                   draggable
@@ -74,10 +88,12 @@ export function MenusPage({
                           draggable
                           onDragStart={() => setDraggingMenu({ key: child.key, parentKey: menu.key })}
                           onDragOver={(event) => {
+                            if (draggingMenu?.parentKey !== menu.key) return;
                             event.preventDefault();
                             setDragOverMenu(child.key);
                           }}
                           onDrop={(event) => {
+                            if (draggingMenu?.parentKey !== menu.key) return;
                             event.preventDefault();
                             event.stopPropagation();
                             handleMenuDrop(child.key, menu.key);

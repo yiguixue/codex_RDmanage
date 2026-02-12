@@ -27,7 +27,7 @@ public class MenuConfigService {
       return defaults;
     }
     try {
-      List<MenuConfigItem> items = objectMapper.readValue(configPath.toFile(), LIST_TYPE);
+      List<MenuConfigItem> items = normalize(objectMapper.readValue(configPath.toFile(), LIST_TYPE));
       if (items == null || items.isEmpty()) {
         List<MenuConfigItem> defaults = defaultConfig();
         save(defaults);
@@ -44,7 +44,7 @@ public class MenuConfigService {
   public void save(List<MenuConfigItem> items) {
     try {
       Files.createDirectories(configPath.getParent());
-      objectMapper.writerWithDefaultPrettyPrinter().writeValue(configPath.toFile(), items);
+      objectMapper.writerWithDefaultPrettyPrinter().writeValue(configPath.toFile(), normalize(items));
     } catch (IOException ex) {
       throw new IllegalStateException("保存菜单配置失败", ex);
     }
@@ -53,9 +53,15 @@ public class MenuConfigService {
   private List<MenuConfigItem> defaultConfig() {
     List<MenuConfigItem> items = new ArrayList<>();
     items.add(menu("overview", "概览", "概览", "overview"));
-    items.add(menu("products", "产品管理", "产品管理", "products"));
-    items.add(menu("modules", "功能模块", "功能模块", "modules"));
-    items.add(menu("versions", "版本管理", "版本管理", "versions"));
+
+    MenuConfigItem products = menu("productGroup", "产品管理", "产品管理", "products");
+    List<MenuConfigItem> productChildren = new ArrayList<>();
+    productChildren.add(menu("products", "产品管理", "产品管理", "products"));
+    productChildren.add(menu("modules", "功能模块", "功能模块", "modules"));
+    productChildren.add(menu("versions", "版本管理", "版本管理", "versions"));
+    products.setChildren(productChildren);
+    items.add(products);
+
     items.add(menu("requirements", "需求管理", "需求管理", "requirements"));
     items.add(menu("tasks", "任务管理", "任务管理", "tasks"));
     items.add(menu("reports", "数据报表", "数据报表", "reports"));
@@ -77,5 +83,25 @@ public class MenuConfigService {
     item.setTitle(title);
     item.setIconKey(iconKey);
     return item;
+  }
+
+  private List<MenuConfigItem> normalize(List<MenuConfigItem> items) {
+    if (items == null) {
+      return null;
+    }
+    List<MenuConfigItem> normalized = new ArrayList<>();
+    for (MenuConfigItem item : items) {
+      if (item == null) {
+        continue;
+      }
+      if (item.getChildren() != null && !item.getChildren().isEmpty()) {
+        boolean hasDuplicateKey = item.getChildren().stream().anyMatch(child -> child != null && item.getKey() != null && item.getKey().equals(child.getKey()));
+        if (hasDuplicateKey && "products".equals(item.getKey())) {
+          item.setKey("productGroup");
+        }
+      }
+      normalized.add(item);
+    }
+    return normalized;
   }
 }
